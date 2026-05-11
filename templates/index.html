@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FNOL Claims Processing Agent</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #1e3a5f 0%, #2d6a9f 100%);
+      color: #fff;
+      padding: 24px 40px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    header svg { flex-shrink: 0; }
+    header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: 0.3px; }
+    header p  { font-size: 0.85rem; opacity: 0.8; margin-top: 2px; }
+
+    /* ── Main layout ── */
+    main {
+      max-width: 960px;
+      margin: 36px auto;
+      padding: 0 20px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      padding: 32px;
+      margin-bottom: 24px;
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #2d6a9f;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Upload form ── */
+    .upload-box {
+      border: 2px dashed #cbd5e0;
+      border-radius: 10px;
+      padding: 24px;
+      text-align: center;
+      transition: border-color 0.2s;
+      cursor: pointer;
+      position: relative;
+    }
+    .upload-box:hover { border-color: #2d6a9f; }
+    .upload-box input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .upload-box .icon { font-size: 2rem; margin-bottom: 8px; }
+    .upload-box p { font-size: 0.88rem; color: #718096; }
+    .upload-box strong { color: #2d6a9f; }
+    #file-name { font-size: 0.82rem; color: #38a169; margin-top: 6px; font-weight: 600; }
+
+    .btn-submit {
+      margin-top: 22px;
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #1e3a5f, #2d6a9f);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-submit:hover { opacity: 0.92; }
+    .btn-submit:active { transform: scale(0.99); }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: none; width: 18px; height: 18px;
+      border: 3px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Results ── */
+    .result-header {
+      display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap;
+    }
+    .badge {
+      display: inline-block;
+      padding: 10px 20px;
+      border-radius: 999px;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+    .badge-green  { background: #c6f6d5; color: #22543d; }
+    .badge-orange { background: #feebc8; color: #7b341e; }
+    .badge-red    { background: #fed7d7; color: #742a2a; }
+    .badge-blue   { background: #bee3f8; color: #1a365d; }
+    .badge-gray   { background: #e2e8f0; color: #2d3748; }
+
+    .reasoning {
+      margin-top: 12px;
+      padding: 14px 18px;
+      background: #f7fafc;
+      border-left: 4px solid #2d6a9f;
+      border-radius: 0 8px 8px 0;
+      font-size: 0.92rem;
+      color: #4a5568;
+      line-height: 1.6;
+    }
+
+    /* ── Collapsibles ── */
+    details {
+      margin-top: 18px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    details summary {
+      padding: 14px 18px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.95rem;
+      background: #f7fafc;
+      user-select: none;
+      display: flex; align-items: center; gap: 8px;
+      list-style: none;
+    }
+    details summary::-webkit-details-marker { display: none; }
+    details summary::before {
+      content: '▶';
+      font-size: 0.7rem;
+      color: #718096;
+      transition: transform 0.2s;
+    }
+    details[open] summary::before { transform: rotate(90deg); }
+    details > div { padding: 18px; }
+
+    /* ── Fields table ── */
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th {
+      background: #edf2f7; padding: 10px 14px; text-align: left;
+      font-weight: 600; color: #4a5568; border-bottom: 2px solid #e2e8f0;
+    }
+    td { padding: 9px 14px; border-bottom: 1px solid #f0f4f8; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f7fafc; }
+    td.field-name { font-weight: 500; color: #2d6a9f; width: 38%; }
+    td.field-null { color: #a0aec0; font-style: italic; }
+
+    /* ── Missing fields ── */
+    .missing-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .missing-tag {
+      background: #fff5f5; color: #c53030;
+      border: 1px solid #fc8181;
+      padding: 5px 12px; border-radius: 999px;
+      font-size: 0.82rem; font-weight: 600;
+    }
+    .no-missing { color: #38a169; font-weight: 600; font-size: 0.9rem; }
+
+    /* ── Raw JSON ── */
+    .btn-toggle {
+      margin-top: 18px;
+      padding: 9px 18px;
+      background: #edf2f7; color: #4a5568;
+      border: 1px solid #e2e8f0; border-radius: 8px;
+      cursor: pointer; font-size: 0.85rem; font-weight: 600;
+    }
+    .btn-toggle:hover { background: #e2e8f0; }
+    pre {
+      background: #1a202c; color: #a0f0a0;
+      padding: 18px; border-radius: 10px;
+      font-size: 0.8rem; overflow-x: auto;
+      margin-top: 12px; display: none;
+      line-height: 1.55;
+    }
+    pre.visible { display: block; }
+
+    /* ── File source label ── */
+    .file-label {
+      font-size: 0.82rem; color: #718096; margin-bottom: 14px;
+      padding: 6px 12px; background: #f0f4f8; border-radius: 6px;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+    <rect width="40" height="40" rx="10" fill="rgba(255,255,255,0.15)"/>
+    <path d="M10 12h20v3H10zm0 7h14v3H10zm0 7h10v3H10z" fill="white"/>
+    <circle cx="31" cy="29" r="6" fill="#f6ad55"/>
+    <path d="M29 29l1.5 1.5L33 27" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <div>
+    <h1>FNOL Claims Processing Agent</h1>
+    <p>Autonomous First Notice of Loss extraction, validation &amp; routing</p>
+  </div>
+</header>
+
+<main>
+
+  <!-- ── Upload Card ── -->
+  <div class="card">
+    <h2>
+      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#2d6a9f" stroke-width="2">
+        <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Submit FNOL Document
+    </h2>
+
+    <form method="POST" action="/process" enctype="multipart/form-data" id="fnol-form">
+      <div class="upload-box" id="drop-zone">
+        <input type="file" name="fnol_file" id="fnol_file" accept=".txt,.pdf"
+               onchange="showFileName(this)" />
+        <div class="icon">📄</div>
+        <p><strong>Click or drag</strong> to upload</p>
+        <p>Supports PDF &amp; TXT</p>
+        <div id="file-name"></div>
+      </div>
+
+      <button type="submit" class="btn-submit" id="submit-btn">
+        <span id="btn-text">⚡ Process FNOL</span>
+        <div class="spinner" id="spinner"></div>
+      </button>
+    </form>
+  </div>
+
+  <!-- ── Results Card ── -->
+  {% if result %}
+  <div class="card" id="results">
+    <h2>
+      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#2d6a9f" stroke-width="2">
+        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Processing Result
+    </h2>
+
+    <div class="file-label">📁 {{ result.file }}</div>
+
+    <!-- Route badge -->
+    {% set route = result.recommendedRoute %}
+    {% if route == 'Fast-Track' %}
+      <span class="badge badge-green">✅ {{ route }}</span>
+    {% elif route == 'Manual Review' %}
+      <span class="badge badge-orange">⚠️ {{ route }}</span>
+    {% elif route == 'Investigation Flag' %}
+      <span class="badge badge-red">🚨 {{ route }}</span>
+    {% elif route == 'Specialist Queue' %}
+      <span class="badge badge-blue">🏥 {{ route }}</span>
+    {% else %}
+      <span class="badge badge-gray">📋 {{ route }}</span>
+    {% endif %}
+
+    <div class="reasoning">{{ result.reasoning }}</div>
+
+    <!-- Extracted fields -->
+    <details open>
+      <summary>📊 Extracted Fields</summary>
+      <div>
+        <table>
+          <thead>
+            <tr><th>Field</th><th>Value</th></tr>
+          </thead>
+          <tbody>
+            {% for key, val in result.extractedFields.items() %}
+            <tr>
+              <td class="field-name">{{ key.replace('_', ' ').title() }}</td>
+              <td {% if val is none or val == '' or val == [] %}class="field-null"{% endif %}>
+                {% if val is none %}
+                  null
+                {% elif val == '' %}
+                  <em>empty</em>
+                {% elif val is iterable and val is not string %}
+                  {% if val | length == 0 %}
+                    <em>none listed</em>
+                  {% else %}
+                    {{ val | join(', ') }}
+                  {% endif %}
+                {% else %}
+                  {{ val }}
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- Missing fields -->
+    <details {% if result.missingFields %}open{% endif %}>
+      <summary>
+        ❌ Missing Fields
+        {% if result.missingFields %}
+          <span style="margin-left:8px;background:#fed7d7;color:#c53030;padding:2px 10px;border-radius:999px;font-size:0.78rem;">
+            {{ result.missingFields | length }}
+          </span>
+        {% endif %}
+      </summary>
+      <div>
+        {% if result.missingFields %}
+          <div class="missing-list">
+            {% for f in result.missingFields %}
+              <span class="missing-tag">{{ f.replace('_', ' ').title() }}</span>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="no-missing">✔ All mandatory fields are present.</p>
+        {% endif %}
+      </div>
+    </details>
+
+    <!-- Raw JSON -->
+    <button class="btn-toggle" onclick="toggleJson()">{ } Toggle Raw JSON</button>
+    <pre id="raw-json">{{ result_json }}</pre>
+  </div>
+  {% endif %}
+
+</main>
+
+<script>
+  function logUi(step, payload) {
+    const stamp = new Date().toISOString();
+    if (payload === undefined) {
+      console.log(`[fnol-ui ${stamp}] ${step}`);
+      return;
+    }
+    console.log(`[fnol-ui ${stamp}] ${step}`, payload);
+  }
+
+  function showFileName(input) {
+    const label = document.getElementById('file-name');
+    label.textContent = input.files.length ? '✔ ' + input.files[0].name : '';
+    logUi('File selected', {
+      name: input.files[0]?.name || null,
+      sizeBytes: input.files[0]?.size || null,
+      type: input.files[0]?.type || null
+    });
+  }
+
+  function startSubmit() {
+    const btn = document.getElementById('submit-btn');
+    const txt = document.getElementById('btn-text');
+    const spin = document.getElementById('spinner');
+    txt.textContent = 'Processing…';
+    spin.style.display = 'block';
+    btn.disabled = true;
+  }
+
+  function toggleJson() {
+    const pre = document.getElementById('raw-json');
+    pre.classList.toggle('visible');
+    logUi('Toggled raw JSON', { visible: pre.classList.contains('visible') });
+  }
+
+  // Scroll to results if present
+  window.addEventListener('DOMContentLoaded', () => {
+    logUi('Page loaded');
+    const form = document.getElementById('fnol-form');
+    const fileInput = document.getElementById('fnol_file');
+
+    form.addEventListener('submit', (event) => {
+      const hasFile = fileInput.files && fileInput.files.length > 0;
+      logUi('Submit clicked', { hasFile });
+
+      if (!hasFile) {
+        event.preventDefault();
+        logUi('Submit blocked: no file selected');
+        alert('Please upload a PDF or TXT file.');
+        return;
+      }
+
+      logUi('Form submit allowed: sending POST /process');
+      startSubmit();
+    });
+
+    const res = document.getElementById('results');
+    if (res) res.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+</script>
+
+</body>
+</html>
