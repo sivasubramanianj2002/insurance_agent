@@ -1,11 +1,5 @@
 # FNOL Claims Processing Agent
 
-An autonomous **First Notice of Loss (FNOL)** processing agent built with Flask and the HuggingFace free Inference API. Upload a PDF or TXT claim document and the agent will:
-
-1. **Extract** all structured fields using an LLM (Qwen2.5-VL-7B)
-2. **Validate** mandatory fields
-3. **Route** the claim based on fraud signals, injury type, damage thresholds, and completeness
-
 ---
 
 ## Setup
@@ -47,42 +41,6 @@ The agent returns:
 - **Extracted fields** table
 - **Missing fields** list (if any)
 - **Raw JSON** output toggle
-
----
-
-## Routing Rules
-
-| Route | Condition | Badge Color |
-|---|---|---|
-| 🚨 **Investigation Flag** | Incident description contains fraud keywords: `fraud`, `staged`, `inconsistent`, `suspicious`, `fabricated`, `fake` | Red |
-| ⚠️ **Manual Review** | One or more mandatory fields are missing | Orange |
-| 🏥 **Specialist Queue** | `claim_type` is `injury` | Blue |
-| ✅ **Fast-Track** | `estimated_damage` < 25,000 | Green |
-| 📋 **Standard Review** | All other complete claims | Gray |
-
-Rules are evaluated **in priority order** — fraud check always wins.
-
----
-
-## Mandatory Fields
-
-The following fields must be present for a claim to avoid Manual Review:
-
-`policy_number`, `policyholder_name`, `policy_effective_date`, `incident_date`, `incident_location`, `incident_description`, `claimant_name`, `contact_details`, `asset_type`, `estimated_damage`, `claim_type`, `initial_estimate`
-
----
-
-## Sample FNOLs
-
-| File | Scenario | Expected Route |
-|---|---|---|
-| `fnol_001.txt` | Auto claim, damage $18k, no injury | Fast-Track |
-| `fnol_002.txt` | Property claim, missing `initial_estimate` | Manual Review |
-| `fnol_003.txt` | Auto claim, staged accident language | Investigation Flag |
-| `fnol_004.txt` | Injury claim, damage $55k | Specialist Queue |
-| `fnol_005.txt` | Auto claim, damage $80k | Standard Review |
-
----
 
 ## PDF Support
 
